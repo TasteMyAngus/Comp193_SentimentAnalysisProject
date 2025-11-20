@@ -1,2 +1,7 @@
 # Comp193_SentimentAnalysisProject
-Yuh
+
+# Naive Bays Classification:
+- Cost
+- Service
+- Food
+
