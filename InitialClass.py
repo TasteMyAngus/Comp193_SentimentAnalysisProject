@@ -1,6 +1,10 @@
 # From nltk library, we will use word_tokenize and sent_tokenize functions
 
 import nltk
+import pandas as pd
+
+reviews = pd.read_csv("Restaurant_Reviews.tsv", sep="\t")
+print(reviews.head())
 
 class SentimentAnalyzer:
     def __init__(self):
@@ -20,5 +24,5 @@ class SentimentAnalyzer:
         return words
     
 
-def main():
+#def main():
     
