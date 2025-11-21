@@ -5,3 +5,5 @@
 - Service
 - Food
 
+# Install Dependencies
+pip install -r requirements.txt
