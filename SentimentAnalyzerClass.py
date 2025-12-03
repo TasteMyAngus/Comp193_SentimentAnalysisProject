@@ -9,6 +9,9 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+import joblib
+import os
+from collections import Counter, defaultdict
 
 class SentimentAnalyzer:
     def __init__(self, data_path, train=True, train_aspect_models=True):
@@ -27,8 +30,9 @@ class SentimentAnalyzer:
         self.reviews = pd.read_csv(data_path, sep="\t")
         # Y source: labels
         self.y = self.reviews["Liked"].tolist()
-        # Initialize MultinomialNB classifier
+        # Initialize MultinomialNB classifier and main vectorizer placeholder
         self.clf = MultinomialNB()
+        self.main_vectorizer = None
         # Training flag
         self.train = train
         # Train aspect classifiers flag
@@ -107,6 +111,7 @@ class SentimentAnalyzer:
         )
         
         X = vectorizer_tfid.fit_transform(reviews)
+        self.main_vectorizer = vectorizer_tfid
         return X
     def load_lexicon(self, csv_path):
         df = pd.read_csv(csv_path)
@@ -278,6 +283,7 @@ class SentimentAnalyzer:
                         if any(tok in self.negators for tok in token_list[left:right]):
                             return True
                 return False
+            
             # Adjust hits for negation
             for ph in [t for t in pos_terms if " " in t]:
                 if has_negator_near(ph.split()):
@@ -338,6 +344,136 @@ class SentimentAnalyzer:
             print("\nModel Evaluation:")
             print("\nAccuracy:", accuracy_score(y_test, y_pred))
 
+    def predict_overall(self, review_text):
+        # Ensure we have a vectorizer and classifier
+        if self.main_vectorizer is None:
+            raise RuntimeError("Main vectorizer not initialized. Run training or load models.")
+        sentences = self.split_into_sentences(review_text)
+        sent_words = [self.split_sentences_into_words(s) for s in sentences]
+        sent_words = [self.remove_punctuation_from_word_list(w) for w in sent_words]
+        sent_words = [self.lowercase_words(w) for w in sent_words]
+        flat = " ".join(word for sentence in sent_words for word in sentence)
+        X = self.main_vectorizer.transform([flat])
+        pred = self.clf.predict(X)[0]
+        return "positive" if pred == 1 else "negative"
+
+    def save_models(self, dir_path="models"):
+        os.makedirs(dir_path, exist_ok=True)
+        # Save main classifier and vectorizer
+        joblib.dump(self.clf, os.path.join(dir_path, "overall_clf.pkl"))
+        joblib.dump(self.main_vectorizer, os.path.join(dir_path, "overall_vectorizer.pkl"))
+        # Save aspect models and vectorizers
+        joblib.dump(self.aspect_models, os.path.join(dir_path, "aspect_clfs.pkl"))
+        joblib.dump(self.aspect_vectorizers, os.path.join(dir_path, "aspect_vectorizers.pkl"))
+        print(f"Saved models to '{dir_path}'")
+
+    def load_models(self, dir_path="models"):
+        # Load main classifier and vectorizer
+        self.clf = joblib.load(os.path.join(dir_path, "overall_clf.pkl"))
+        self.main_vectorizer = joblib.load(os.path.join(dir_path, "overall_vectorizer.pkl"))
+        # Load aspect models and vectorizers if present
+        aspect_clfs_path = os.path.join(dir_path, "aspect_clfs.pkl")
+        aspect_vecs_path = os.path.join(dir_path, "aspect_vectorizers.pkl")
+        if os.path.exists(aspect_clfs_path):
+            self.aspect_models = joblib.load(aspect_clfs_path)
+        if os.path.exists(aspect_vecs_path):
+            self.aspect_vectorizers = joblib.load(aspect_vecs_path)
+        print(f"Loaded models from '{dir_path}'")
+
+    def _match_terms(self, tokens, flat_lemmas, aspect):
+        # Return matched positive/negative terms for diagnostics
+        lex_rows = self.lexicon_df[self.lexicon_df["aspect"] == aspect]
+        pos_terms = set(lex_rows[lex_rows["label"] == 1]["term"].tolist())
+        neg_terms = set(lex_rows[lex_rows["label"] == 0]["term"].tolist())
+        pos_terms_lem = set(lex_rows[lex_rows["label"] == 1]["term_lemma"].tolist())
+        neg_terms_lem = set(lex_rows[lex_rows["label"] == 0]["term_lemma"].tolist())
+        pos_hits = [t for t in pos_terms if (" " in t and t in flat_lemmas) or (" " not in t and t in tokens)]
+        neg_hits = [t for t in neg_terms if (" " in t and t in flat_lemmas) or (" " not in t and t in tokens)]
+        # Lemma matches (single words)
+        pos_hits += [t for t in pos_terms_lem if " " not in t and t in flat_lemmas]
+        neg_hits += [t for t in neg_terms_lem if " " not in t and t in flat_lemmas]
+        return pos_hits, neg_hits
+
+    def generate_insights_report(self, output_dir="reports"):
+        os.makedirs(output_dir, exist_ok=True)
+        # Ensure models/vectorizers are ready
+        if self.main_vectorizer is None or self.clf is None:
+            raise RuntimeError("Models not ready. Train or load_models() first.")
+
+        rows = []
+        aspect_counts = {a: Counter() for a in ["food","service","price"]}
+        drivers_pos = {a: Counter() for a in ["food","service","price"]}
+        drivers_neg = {a: Counter() for a in ["food","service","price"]}
+        examples_neg = {a: [] for a in ["food","service","price"]}
+
+        for i, review in enumerate(self.reviews["Review"].tolist()):
+            # Overall prediction
+            overall = self.predict_overall(review)
+            # Aspect prediction + matched terms
+            sentences = self.split_into_sentences(review)
+            sent_words = [self.split_sentences_into_words(s) for s in sentences]
+            sent_words = [self.remove_punctuation_from_word_list(w) for w in sent_words]
+            sent_words = [self.lowercase_words(w) for w in sent_words]
+            flat = " ".join(word for sentence in sent_words for word in sentence)
+            flat_lemmas = " ".join(self.lemmatizer.lemmatize(w) for w in flat.split())
+            tokens = set(flat.split())
+            aspect_preds = self.predict_aspect_sentiment(review)
+            # tally
+            for a in ["food","service","price"]:
+                aspect_counts[a][aspect_preds[a]] += 1
+                pos_hits, neg_hits = self._match_terms(tokens, flat_lemmas, a)
+                for t in pos_hits:
+                    drivers_pos[a][t] += 1
+                for t in neg_hits:
+                    drivers_neg[a][t] += 1
+                if aspect_preds[a] == "negative" and len(examples_neg[a]) < 5:
+                    examples_neg[a].append(review)
+
+            rows.append({
+                "index": i,
+                "overall": overall,
+                "food": aspect_preds.get("food","none"),
+                "service": aspect_preds.get("service","none"),
+                "price": aspect_preds.get("price","none"),
+            })
+
+        # Save CSV
+        csv_path = os.path.join(output_dir, "aspect_predictions.csv")
+        pd.DataFrame(rows).to_csv(csv_path, index=False)
+
+        # Build Markdown summary
+        total = len(self.reviews)
+        def pct(c):
+            return f"{(c/total*100):.1f}%"
+
+        md_lines = [
+            "# Restaurant Review Insights",
+            "",
+            f"Total reviews: {total}",
+            "",
+            "## Aspect Sentiment Summary",
+        ]
+        for a in ["food","service","price"]:
+            pos = aspect_counts[a]["positive"]
+            neg = aspect_counts[a]["negative"]
+            none = aspect_counts[a]["none"]
+            md_lines += [
+                f"### {a.title()}",
+                f"- Positive: {pos} ({pct(pos)})",
+                f"- Negative: {neg} ({pct(neg)})",
+                f"- None: {none} ({pct(none)})",
+                f"- Top negative drivers: {', '.join([t for t,_ in drivers_neg[a].most_common(10)]) or '—'}",
+                f"- Top positive drivers: {', '.join([t for t,_ in drivers_pos[a].most_common(10)]) or '—'}",
+                "- Examples (negative):",
+            ]
+            for ex in examples_neg[a]:
+                md_lines.append(f"  - {ex}")
+            md_lines.append("")
+
+        md_path = os.path.join(output_dir, "summary.md")
+        with open(md_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(md_lines))
+        print(f"Saved report: {csv_path}\nSaved summary: {md_path}")
 
     # deprecated method
     # now using prepare_review_texts
@@ -390,7 +526,6 @@ class SentimentAnalyzer:
         self.cleaned_texts = texts
     
     
-
     def run(self):
         self.prepare_review_texts()
         X = self.vectorize_reviews(self.cleaned_texts)
@@ -402,6 +537,8 @@ class SentimentAnalyzer:
         X_train, X_test, y_train, y_test = self.split_data(X, self.y, test_size=0.2, random_state=42)
         if self.train:
             self.train_model(X_train, y_train, X_test, y_test)
+            # Persist trained models
+            self.save_models()
 
         # Build aspect presence labels and optionally train aspect-specific classifiers
         self.build_presence_label()
@@ -422,3 +559,11 @@ class SentimentAnalyzer:
 if __name__ == "__main__":
     analyzer = SentimentAnalyzer("Restaurant_Reviews.tsv", True)
     analyzer.run()
+    # Load saved models to ensure predict-only runs work too
+    analyzer.load_models()
+    # Generate the insights report folder and files when running via Run Code
+    analyzer.generate_insights_report("reports")
+    # Optional demo prediction on a custom text
+    txt = "The food was delicious, but the price was too high."
+    print("\nOverall:", analyzer.predict_overall(txt))
+    print("Aspects:", analyzer.predict_aspect_sentiment(txt))

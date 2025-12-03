@@ -138,3 +138,9 @@ cost,wallet,neutral
 cost,costly,negative
 cost,reasonable,positive
 cost,unreasonable,negative
+cost,too high,negative
+cost,high price,negative
+cost,prices too high,negative
+cost,price too high,negative
+cost,low price,positive
+cost,reasonable price,positive
