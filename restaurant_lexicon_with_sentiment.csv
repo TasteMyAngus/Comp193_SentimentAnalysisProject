@@ -1,0 +1,140 @@
+category,word,sentiment
+food,food,neutral
+food,meal,neutral
+food,dish,neutral
+food,dishes,neutral
+food,menu,neutral
+food,appetizer,neutral
+food,entree,neutral
+food,main,neutral
+food,dessert,neutral
+food,taste,neutral
+food,tasty,positive
+food,flavor,neutral
+food,flavorful,positive
+food,bland,negative
+food,seasoned,positive
+food,unseasoned,negative
+food,fresh,positive
+food,stale,negative
+food,spoiled,negative
+food,hot,neutral
+food,cold,neutral
+food,warm,neutral
+food,lukewarm,negative
+food,undercooked,negative
+food,overcooked,negative
+food,burnt,negative
+food,raw,negative
+food,juicy,positive
+food,tender,positive
+food,crispy,positive
+food,crunchy,positive
+food,soggy,negative
+food,greasy,negative
+food,oily,negative
+food,dry,negative
+food,portion,neutral
+food,portions,neutral
+food,serving,neutral
+food,plate,neutral
+food,plating,neutral
+food,spicy,neutral
+food,mild,neutral
+food,sweet,neutral
+food,salty,neutral
+food,savory,positive
+food,bitter,negative
+food,sour,neutral
+food,rich,positive
+food,delicious,positive
+food,amazing,positive
+food,fantastic,positive
+food,gross,negative
+food,awful,negative
+food,inedible,negative
+service,service,neutral
+service,staff,neutral
+service,waiter,neutral
+service,waitress,neutral
+service,server,neutral
+service,servers,neutral
+service,host,neutral
+service,hostess,neutral
+service,bartender,neutral
+service,manager,neutral
+service,team,neutral
+service,friendly,positive
+service,unfriendly,negative
+service,rude,negative
+service,polite,positive
+service,courteous,positive
+service,disrespectful,negative
+service,attentive,positive
+service,inattentive,negative
+service,responsive,positive
+service,unresponsive,negative
+service,slow,negative
+service,fast,positive
+service,rushed,negative
+service,helpful,positive
+service,unhelpful,negative
+service,professional,positive
+service,unprofessional,negative
+service,check on us,positive
+service,ignored,negative
+service,neglected,negative
+service,reservation,neutral
+service,seated,neutral
+service,seat,neutral
+service,line,neutral
+service,wait time,neutral
+service,queue,neutral
+service,order,neutral
+service,orders,neutral
+service,ordering,neutral
+service,took our order,neutral
+service,refill,neutral
+service,refills,neutral
+service,water,neutral
+service,drinks,neutral
+service,kitchen delay,negative
+service,check in,positive
+service,customer service,neutral
+cost,cost,neutral
+cost,price,neutral
+cost,prices,neutral
+cost,priced,neutral
+cost,pricing,neutral
+cost,cheap,positive
+cost,inexpensive,positive
+cost,affordable,positive
+cost,budget,positive
+cost,expensive,negative
+cost,overpriced,negative
+cost,over-priced,negative
+cost,pricey,negative
+cost,value,neutral
+cost,good value,positive
+cost,great value,positive
+cost,worth it,positive
+cost,not worth it,negative
+cost,portion size,neutral
+cost,small portions,negative
+cost,big portions,positive
+cost,bill,neutral
+cost,check,neutral
+cost,tab,neutral
+cost,receipt,neutral
+cost,tip,neutral
+cost,tipping,neutral
+cost,gratuity,neutral
+cost,service charge,neutral
+cost,discount,positive
+cost,deal,positive
+cost,special,positive
+cost,happy hour,positive
+cost,wallet,neutral
+cost,costly,negative
+cost,reasonable,positive
+cost,unreasonable,negative
